@@ -78,11 +78,11 @@ dynamic voltage scaling must not be used when Low power run mode is selected.
 
 To enter Low power run mode proceed as follows:
 
-1. Each digital IP clock must be enabled or disabled by using the RCC_APBxENR and
-RCC_AHBENR registers.
+1. Each digital IP clock must be enabled or disabled by using the RCC\_APBxENR and
+RCC\_AHBENR registers.
 
 2. The frequency of the system clock must be decreased to not exceed the frequency of
-f_MSI range1.
+f\_MSI range1.
 
 3. The regulator is forced in low power mode by software (LPRUN and LPSDSR bits set).
 
@@ -175,22 +175,48 @@ Also let's set |BIAS == 1/3|.
 LCD_CR |= LCD_CR_MUX_SEG | LCD_CR_DUTY_1_4 | LCD_CR_BIAS_1_3;
 
 @ Now we would configure frame rate, contrast and other LCD optional features.
-Let's use as rare update as possible. So prescaler |PS| would be equal $1$ and
-divider |DIV| would be equal $1/31$. And let other values of |LCD_FCR| regiser
-keep their default value.
+Let's use set settings for 100Hz screen redrow frequency.
+So prescaler |PS| would be equal $4$ and divider |DIV| would be equal $1/2$.
+Also set contrast control to $1$ with |CC|.
+And let other values of |LCD_FCR| regiser keep their default value.
 
 @d LCD_FCR MMIO32(LCD_BASE + 0x04)
-@d LCD_FCR_PS_MASK (0xF << 22)
-@d LCD_FCR_DIV_MASK (0xF << 18)
+@d LCD_FCR_PS(n) (n << 22)
+@d LCD_FCR_PS_MASK (LCD_FCR_PS(0xF))
+@d LCD_FCR_DIV(n) (n << 18)
+@d LCD_FCR_DIV_MASK (LCD_FCR_DIV(0xF))
+@d LCD_FCR_CC(n) (n << 10)
+@d LCD_FCR_CC_MASK (LCD_FCR_CC(0x7))
 
 @<Configure screen@>=
-LCD_FCR |= LCD_FCR_DIV_MASK; // Set DIV to 1111 i.e. $1/31$
-LCD_FCR &= ~LCD_FCR_PS_MASK; // Set PS to 0000 i.e. $1/1$
+LCD_FCR |= LCD_FCR_DIV(2);
+LCD_FCR |= LCD_FCR_PS(4);
+LCD_FCR |= LCD_FCR_CC(2);
 
-@ End at least enable LCD end write some data to screen
+@ And at least enable LCD end write ``READ'' string to screen.
+I don't wont create full library for text displaying on LCD screen.
+It's reason why I use |print_READ| function instead of |print("READ")| for word displaying.
+When LCD enabled and ``READ'' word displayed STM32L152 consume 70uA and screen
+with separate power supply consume near 570uA. So whole plate consume near 640uA.
 
-@d LCD_SR MMIO32(LCD_BASE + 0x08) 
+@d LCD_SR MMIO32(LCD_BASE + 0x08)
+@d LCD_SR_ENS (1 << 0)
 @d LCD_SR_UDR (1 << 2)
+@d LCD_SR_RDY (1 << 4)
+
+@<Predeclaration...@>=
+void print_READ (void);
+
+@ @<Configure screen@>=
+LCD_CR |= LCD_CR_LCDEN;
+do {} while (LCD_SR & LCD_SR_ENS == 0); /* Enabled */
+do {} while (LCD_SR & LCD_SR_RDY == 0); /* Ready */
+
+print_READ ();
+
+@ In |print_READ| function just enable needed segments of LCD on |LCD_RAM|.
+It's segments F,A,B,M,G,E,N on 2 symbol, segments A,F,G,M,E,D on 3 symbol,
+segments F,A,B,G,M,E,C on 4 symbol and B,G,M,E,C,D on 5 symbol.
 
 @d LCD_RAM_BASE (LCD_BASE + 0x14)
 @d LCD_RAM_COM0 MMIO64(LCD_RAM_BASE + 0x0)
@@ -198,9 +224,73 @@ LCD_FCR &= ~LCD_FCR_PS_MASK; // Set PS to 0000 i.e. $1/1$
 @d LCD_RAM_COM2 MMIO64(LCD_RAM_BASE + 0x10)
 @d LCD_RAM_COM3 MMIO64(LCD_RAM_BASE + 0x18)
 
-@<Configure screen@>=
-LCD_CR |= LCD_CR_LCDEN;
-int i = 0xFFFF; do {--i;} while (i);
-LCD_RAM_COM1 = 0xFFFF;
-((char *) LCD_RAM_BASE)[0] = '\xff';
-LCD_SR |= LCD_SR_UDR;
+@<Functions@>=
+void print_READ (void)
+{
+  do {} while (LCD_SR & LCD_SR_UDR); // LCD memort access is safe
+  uint32_t com0 = 0, com1 = 0, com2 = 0, com3 = 0;
+  com0 |= 1 << 2 | 1 << 7 | 1 << 8 | 1 << 9 | 1 << 10 | 1 << 11 | 1 << 12 | 1 << 13; //2-5EM
+  com0 |= 1 << 27 | 1 << 26 | 1 << 25 | 1 << 21 | 1 << 20 | 1 << 19 | 1 << 18; //2,4,5GB, 3G
+  com1 |= 1 << 8 | 1 << 11 | 1 << 12 | 1 << 13; //3D,4C,5DC
+  com1 |= 1 << 27 | 1 << 26 | 1 << 25 | 1 << 24 | 1 << 21 | 1 << 20; //2-4AF
+  com3 |= 1 << 2;
+  LCD_RAM_COM0 = com0;
+  LCD_RAM_COM1 = com1;
+  LCD_RAM_COM2 = com2;
+  LCD_RAM_COM3 = com3;
+  LCD_SR |= LCD_SR_UDR;		// Update LCD
+}
+
+@ On default screen, because screen connected to SEG[0:2,7:21,24:29] LCD segnemts,
+so pixels of N character (N from 0 to 5)
+corresponds to addresses COMx[P], COMx[P+1], COMx[Q], COMx[Q-1],
+where P and Q calculates like:
+
+$$
+if~ (2*N > 2)~ P=2*N+4~ else~ P = 2*N;
+$$
+$$
+if~ ((23 - 2*N) + 4 > 21)~
+  Q= (23 - 2*N) + 4 + 2;~
+else ~
+  Q = 23 - 2*N + 4;
+$$
+
+And symbol segments maps in next manner:
+
+COM1[Q-1] == A;
+
+COM0[Q-1] == B;
+
+COM1[P+1] == C;
+
+COM1[P] == D;
+
+COM0[P] == E;
+
+COM1[Q] == F;
+
+COM0[Q] == G;
+
+COM3[Q] == H;
+
+COM3[Q-1] == J;
+
+COM2[Q-1] == K;
+
+COM0[P+1] == M;
+
+COM3[P] == N;
+
+COM2[P] == P;
+
+COM2[Q] == Q;
+
+COM3[P+1] == DP;
+
+COM2[P+1] == COLON;
+
+Also BAR2 is DP4, BAR0 is DP5, BAR3 is COLON4 and BAR1 is COLON5.
+
+
+@* One wire host device.

@@ -30,6 +30,8 @@
 *.vrb
 *.xdy
 *.tdo
+*.tex
+*.scn
 *.o
 *.bin
 *.elf

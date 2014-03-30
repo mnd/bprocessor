@@ -27,8 +27,8 @@ static volatile uint32_t systick_timer;
 
 void systick_init (void)
 {
-  systick_set_clocksource(-1);	/* Processor as clock source */
-  systick_set_reload (32);	/* Every 2us on HSI */
+  systick_set_clocksource(STK_CSR_CLKSOURCE_AHB); /* Processor as clock source */
+  systick_set_reload (48);	/* Every 2us on PLL 24 MHz */
   systick_interrupt_enable();
 }
 
@@ -40,8 +40,8 @@ void sys_tick_handler(void)
 
 void delay_us (uint32_t delay)
 {
-  systick_timer = (delay+1)/2;	/* ticks produces every 3 us */
   systick_counter_enable ();
+  systick_timer = (delay+1)/2;	/* ticks produces every 2 us */
   do {} while (systick_timer);
-  systick_counter_disable ();  
+  systick_counter_disable ();
 }

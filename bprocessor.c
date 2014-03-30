@@ -60,12 +60,12 @@ lcd_display_ROM (uint64_t rom)
   for (i = 0; i < 3; i++)
     {
       clear_lcd_ram (); 	/* all segments off */
-      write_char_to_lcd_ram (0, ((rom >> 0) & 0xF) + '7', true);
-      write_char_to_lcd_ram (1, ((rom >> 4) & 0xF) + '7', true);
-      write_char_to_lcd_ram (2, ((rom >> 8) & 0xF) + '7', true);
-      write_char_to_lcd_ram (3, ((rom >>12) & 0xF) + '7', true);
-      write_char_to_lcd_ram (4, ((rom >>16) & 0xF) + '7', true);
-      write_char_to_lcd_ram (5, ((rom >>20) & 0xF) + '7', true);
+      write_hex_to_lcd_ram (1, ((rom >> 0) & 0xF), true);
+      write_hex_to_lcd_ram (0, ((rom >> 4) & 0xF), true);
+      write_hex_to_lcd_ram (3, ((rom >> 8) & 0xF), true);
+      write_hex_to_lcd_ram (2, ((rom >>12) & 0xF), true);
+      write_hex_to_lcd_ram (5, ((rom >>16) & 0xF), true);
+      write_hex_to_lcd_ram (4, ((rom >>20) & 0xF), true);
       lcd_update ();
       
       rom >>= 24;
@@ -76,7 +76,8 @@ lcd_display_ROM (uint64_t rom)
 int main(void)
 {
   int i;
-  rcc_clock_setup_hsi(&clock_config[CLOCK_VRANGE1_HSI_RAW_16MHZ]);
+  rcc_clock_setup_pll(&clock_config[CLOCK_VRANGE1_HSI_PLL_24MHZ]);
+  /* rcc_clock_setup_hsi(&clock_config[CLOCK_VRANGE1_HSI_RAW_16MHZ]); */
 
   lcd_init ();
   lcd_display_READ ();

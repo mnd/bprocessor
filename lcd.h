@@ -28,5 +28,6 @@
 void lcd_init(void);
 void clear_lcd_ram(void);
 void write_char_to_lcd_ram (int position, uint8_t symbol, bool clear_before);
+void write_hex_to_lcd_ram (int position, uint8_t symbol, bool clear_before);
 
 #endif

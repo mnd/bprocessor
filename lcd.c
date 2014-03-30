@@ -101,13 +101,13 @@ void write_mask_to_lcd_ram (int position, uint16_t mask, int clear_before)
   int P1,P2,P3,P4;
   if (position < 2) P1 = 2*position;
   else P1 = 2*position+4;
-	
+
   if (position == 1) P2 = P1+5;
   else P2 = P1+1;
-	
+
   if (position < 3) P3 = (23-2*position)+6;
   else P3 = (23-2*position)+4;
-	
+
   if (position == 5) {
     P4 = P3;
     P3 -= 1;
@@ -120,14 +120,14 @@ void write_mask_to_lcd_ram (int position, uint16_t mask, int clear_before)
   COM1 = LCD_RAM_COM1;
   COM2 = LCD_RAM_COM2;
   COM3 = LCD_RAM_COM3;
-	
+
   if (clear_before) {
     COM0&= ~(1<<P1 | 1<<P2 | 1<<P3 | 1<<P4);
     COM1&= ~(1<<P1 | 1<<P2 | 1<<P3 | 1<<P4);
     COM2&= ~(1<<P1 | 1<<P2 | 1<<P3 | 1<<P4);
     COM3&= ~(1<<P1 | 1<<P2 | 1<<P3 | 1<<P4);
   }
-	
+
   COM0 |= ((mask >> 0x1) & 1) << P4 | ((mask >> 0x4) & 1) << P1
         | ((mask >> 0x6) & 1) << P3 | ((mask >> 0xA) & 1) << P2;
   COM1 |= ((mask >> 0x0) & 1) << P4 | ((mask >> 0x2) & 1) << P2
@@ -168,6 +168,19 @@ void write_char_to_lcd_ram (int position, uint8_t symbol, bool clear_before)
     0x2A80, 0x1280, 0x2209, 0x0000, 0x0880, 0x0000, 0x0000, 0x0008
   };
   if (symbol > 0x60) return; // masks not defined. Nothing to display
-	
+
+  write_mask_to_lcd_ram (position, from_ascii[symbol], clear_before);
+}
+
+void write_hex_to_lcd_ram (int position, uint8_t symbol, bool clear_before)
+{
+  uint16_t from_ascii[0x10] = {
+    /* 0       1       2       3       4       5       6       7 */
+    0x003F, 0x0006, 0x045B, 0x044F, 0x0466, 0x046D, 0x047D, 0x2201,
+    /* 8       9       A       B       C       D       E       F */
+    0x047F, 0x046F, 0x0477, 0x047C, 0x0039, 0x045E, 0x0479, 0x0471
+  };
+  if (symbol > 0x10) return; // masks not defined. Nothing to display
+
   write_mask_to_lcd_ram (position, from_ascii[symbol], clear_before);
 }

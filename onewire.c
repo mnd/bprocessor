@@ -28,8 +28,13 @@
 
 #define OW_READ_ROM    0x33
 
-#define OW_DIR_OUT  gpio_mode_setup (GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO5)
-#define OW_DIR_IN   gpio_mode_setup (GPIOA, GPIO_MODE_INPUT,  GPIO_PUPD_NONE, GPIO5)
+#if 0
+#define OW_DIR_OUT gpio_mode_setup (GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO5)
+#define OW_DIR_IN  gpio_mode_setup (GPIOA, GPIO_MODE_INPUT,  GPIO_PUPD_NONE, GPIO5)
+#else
+#define OW_DIR_OUT GPIO_MODER(GPIOA) |=  (1<<10)
+#define OW_DIR_IN  GPIO_MODER(GPIOA) &= ~(3<<10)
+#endif
 
 #define OW_OUT_LOW  gpio_clear (GPIOA, GPIO5)
 #define OW_OUT_HIGH gpio_set   (GPIOA, GPIO5)
@@ -40,7 +45,7 @@ void
 ow_init (void)
 {
   rcc_peripheral_enable_clock (&RCC_AHBENR, RCC_AHBENR_GPIOAEN);
-  gpio_set_output_options (GPIOA, GPIO_OTYPE_PP, GPIO_OSPEED_40MHZ, GPIO5);
+  gpio_set_output_options (GPIOA, GPIO_OTYPE_OD, GPIO_OSPEED_40MHZ, GPIO5);
   OW_DIR_IN;
 }
 
@@ -50,21 +55,21 @@ ow_reset (void)
   uint8_t result;
 
   OW_OUT_LOW;
-  OW_DIR_OUT; 
+  OW_DIR_OUT;
   delay_us (480);
 
   OW_DIR_IN;
-  delay_us(60);
-  
+  delay_us(65);
+
   result = OW_GET_IN;
   delay_us(480);
-  
+
   /* After delay line must be high */
   if (OW_GET_IN == 0)
     {
       return 1;
     }
-  
+
   return result;
 }
 
@@ -73,7 +78,6 @@ ow_bit_io (uint8_t bit)
 {
   uint8_t answer = 0;
 
-  OW_OUT_LOW;
   OW_DIR_OUT;
   if (bit == 0)			/* send 0 */
     {
@@ -85,9 +89,9 @@ ow_bit_io (uint8_t bit)
       delay_us (2);
       OW_DIR_IN;
 
-      delay_us (13);		/* in this place we can read answer */
+      delay_us (10);		/* in this place we can read answer */
       answer = (OW_GET_IN == 0) ? 0 : 1;
-      delay_us (45);
+      delay_us (48);
     }
   delay_us (5);
   return answer;
@@ -102,21 +106,8 @@ ow_read_rom (void)
     {
       ow_bit_io ((0x33 >> i) & 0x1);
     }
-  /* for (i = 0; i < 8; i++)	/\* send READ_ROM command *\/ */
-  /*   { */
-  /*     ow_bit_io ((0x44 >> i) & 0x1); */
-  /*   } */
-  /* ow_reset (); */
-  /* for (i = 0; i < 8; i++)	/\* send READ_ROM command *\/ */
-  /*   { */
-  /*     ow_bit_io ((0xCC >> i) & 0x1); */
-  /*   } */
-  /* for (i = 0; i < 8; i++)	/\* send READ_ROM command *\/ */
-  /*   { */
-  /*     ow_bit_io ((0xBE >> i) & 0x1); */
-  /*   } */
 
-  for (i = 0; i < 16; i++)
+  for (i = 0; i < 64; i++)
     {
       a = ow_bit_io (1);
       result |= a << i;

@@ -27,7 +27,8 @@
 #include "onewire.h"
 #include "sysclock.h"
 
-static void lcd_display_READ (void)
+static void
+lcd_display_READ (void)
 {
   do {} while (!lcd_is_for_update_ready ());
   clear_lcd_ram (); 	/* all segments off */
@@ -40,7 +41,8 @@ static void lcd_display_READ (void)
   lcd_update ();
 }
 
-static void lcd_display_DONE (void)
+static void
+lcd_display_DONE (void)
 {
   do {} while (!lcd_is_for_update_ready ());
   clear_lcd_ram (); 	/* all segments off */
@@ -53,7 +55,21 @@ static void lcd_display_DONE (void)
   lcd_update ();
 }
 
-void
+static void
+lcd_display_WRITE (void)
+{
+  do {} while (!lcd_is_for_update_ready ());
+  clear_lcd_ram (); 	/* all segments off */
+  write_char_to_lcd_ram (0, '*', true);
+  write_char_to_lcd_ram (1, 'W', true);
+  write_char_to_lcd_ram (2, 'R', true);
+  write_char_to_lcd_ram (3, 'I', true);
+  write_char_to_lcd_ram (4, 'T', true);
+  write_char_to_lcd_ram (5, 'E', true);
+  lcd_update ();
+}
+
+static void
 lcd_display_ROM (uint64_t rom)
 {
   int i, j;
@@ -73,6 +89,17 @@ lcd_display_ROM (uint64_t rom)
     }
 }
 
+static void
+lcd_display_COMMAND (uint8_t c)
+{
+  clear_lcd_ram (); 	/* all segments off */
+  write_hex_to_lcd_ram (4, ((c >> 0) & 0xF), true);
+  write_hex_to_lcd_ram (3, ((c >> 4) & 0xF), true);
+  lcd_update ();
+
+  delay_us (3000000);
+}
+
 int main(void)
 {
   int i;
@@ -84,16 +111,23 @@ int main(void)
 
   systick_init ();
 
-  ow_init ();
+  ow_host_init ();
+  ow_client_init ();
 
   /* Wait device */
   delay_us (1000000);
-  do {} while (ow_reset ());
-  uint64_t rom = ow_read_rom ();
+  do {} while (ow_host_reset ());
+  uint64_t rom = ow_host_read_rom ();
   lcd_display_ROM (rom);
   lcd_display_DONE ();
+
   while (1)
     {
+      delay_us (1000000);
+      lcd_display_WRITE ();
+      uint8_t comm = ow_client_send_rom (rom);
+      lcd_display_COMMAND (comm);
+      lcd_display_DONE ();
       __asm__("nop");
     }
 

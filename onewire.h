@@ -25,8 +25,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-void ow_init (void);
-uint8_t ow_reset (void);
-uint64_t ow_read_rom (void);
+void ow_host_init (void);
+uint8_t ow_host_reset (void);
+uint64_t ow_host_read_rom (void);
+
+void ow_client_init (void);
+uint8_t ow_client_send_rom (uint64_t rom);
 
 #endif
